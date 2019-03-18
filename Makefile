@@ -9,4 +9,5 @@ build:
 extract-libraries:
 	mkdir -p shared-$(DOCKER_TAG)
 	docker run --rm -v `pwd`/shared-$(DOCKER_TAG):/shared -v `pwd`/ccache:/ccache $(IMAGE_NAME):$(DOCKER_TAG) \
-                                    bash -c 'cp /work/tensorflow/bazel-bin/tensorflow/libtensorflow_cc.so /shared'
+                                    bash -c 'cp /work/tensorflow/bazel-bin/tensorflow/libtensorflow_cc.so /shared && \
+				             cp /work/tensorflow/bazel-bin/tensorflow/libtensorflow_framework.so /shared'
