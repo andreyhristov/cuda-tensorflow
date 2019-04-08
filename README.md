@@ -4,7 +4,7 @@ Tensorflow (by default 1.12.0) build inside a Docker container with CUDA (by def
 ## How to use
 
 ### Find out which CUDA Capabilities you need
-To find out which capabilities are for you check [Wikipedia's CUDA article](https://en.wikipedia.org/wiki/CUDA). Then edit `.tf_configure.bazelrc` and set `TF_CUDA_COMPUTE_CAPABILITIES` to whatever suits you.
+To find out which capabilities are for you check [Wikipedia's CUDA article](https://en.wikipedia.org/wiki/CUDA). Then edit `.tf_configure.bazelrc-$TENSORFLOW_VERSION` and set `TF_CUDA_COMPUTE_CAPABILITIES` to whatever suits you.
 
 ### Tweaking the Build
 To change different aspects of the build, please change them in `.tf_configure.bazelrc-$TENSORFLOW_VERSION`. If you dont' want to build with TensorRT check the Dockerfile and comment the appropriate portion of code. TensorRT is installed by default for CUDA 10.0 in version 5.1.2. See the Dockerfile for the installation of the dev and the runtime deb packages.
