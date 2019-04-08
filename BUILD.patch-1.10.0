@@ -1,0 +1,11 @@
+--- tensorflow/BUILD       2018-08-07 23:52:04.000000000 +0000
++++ tensorflow/BUILD       2019-04-04 14:43:39.081150117 +0000
+@@ -568,6 +568,8 @@
+         "//tensorflow/cc:scope",
+         "//tensorflow/cc/profiler",
+         "//tensorflow/core:tensorflow",
++        "//tensorflow/contrib/tensorrt:trt_conversion",
++        "//tensorflow/contrib/tensorrt:trt_engine_op_kernel",
+     ],
+ )
+ 
