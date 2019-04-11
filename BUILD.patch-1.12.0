@@ -1,12 +1,14 @@
 --- tensorflow/BUILD       2018-11-02 01:35:10.000000000 +0000
 +++ tensorflow/BUILD       2019-04-07 16:35:43.533217685 +0000
-@@ -471,6 +471,9 @@
+@@ -471,6 +471,11 @@
          "//tensorflow/cc:scope",
          "//tensorflow/cc/profiler",
          "//tensorflow/core:tensorflow",
 +        "//tensorflow/contrib/tensorrt:trt_conversion",
 +        "//tensorflow/contrib/tensorrt:trt_engine_op_kernel",
 +        "//tensorflow/contrib/tensorrt:trt_resources",
++        "//tensorflow/contrib/rnn:all_ops",
++        "//tensorflow/contrib/rnn:all_kernels",
      ] + if_ngraph(["@ngraph_tf//:ngraph_tf"]),
  )
  

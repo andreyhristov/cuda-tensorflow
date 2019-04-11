@@ -5,7 +5,7 @@ FROM nvidia/cuda:$CUDA_VERSION-cudnn7-devel-ubuntu$UBUNTU_VERSION
 
 RUN sed -i "s/archive.ubuntu.com/bg.archive.ubuntu.com/" /etc/apt/sources.list
 RUN \   
-        apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
                 libopencv-dev \
                 libtinyxml2-6 \
                 libtinyxml2-dev \
@@ -49,16 +49,24 @@ RUN wget https://github.com/tensorflow/tensorflow/archive/v$TENSORFLOW_VERSION.t
 ENV TMP /tmp
 
 
-ADD .bazelrc /work/tensorflow
-ADD .tf_configure.bazelrc-$TENSORFLOW_VERSION /work/tensorflow/.tf_configure.bazelrc
+COPY .bazelrc /work/tensorflow
+COPY .tf_configure.bazelrc-$TENSORFLOW_VERSION /work/tensorflow/.tf_configure.bazelrc
 RUN cat /work/tensorflow/.tf_configure.bazelrc
 
+WORKDIR /work/tensorflow
+
 # Only with 1.10.0
-#ADD infeed_manager.cc.patch /work/tensorflow
+#COPY infeed_manager.cc.patch /work/tensorflow
 #RUN cd /work/tensorflow && patch -p1 < infeed_manager.cc.patch
 
-ADD BUILD.patch-$TENSORFLOW_VERSION /work/tensorflow/BUILD.patch
-RUN cd /work/tensorflow && patch -p0 < BUILD.patch
+COPY BUILD.patch-$TENSORFLOW_VERSION /work/tensorflow/BUILD.patch
+RUN patch -p0 < BUILD.patch
+
+# otherwise one symbol from stream_executor won't be visible
+# see https://github.com/tensorflow/tensorflow/issues/19840
+# The code does not exist up to 1.12.0 incl. In 1.13 it is there and the patch will fail
+COPY tf_version_script.lds.patch /work/tensorflow
+RUN patch -p0 tf_version_script.lds.patch
 
 # The following addition to LD path is needed or the bazel build will break with errors due to undefined references
 # See https://github.com/tensorflow/tensorflow/issues/13243
@@ -66,20 +74,26 @@ RUN cd /work/tensorflow && patch -p0 < BUILD.patch
 # In case of monolithic build there is only one build artefact - libtensorflow_cc.so and there is no libtensorflow_framework.so
 RUN echo "/usr/local/cuda/targets/x86_64-linux/lib/stubs" >> /etc/ld.so.conf.d/cuda-10-0.conf && ldconfig
 
-RUN cd /work/tensorflow && bazel build --config=opt --config=monolithic //tensorflow:libtensorflow_cc.so
+#ARG BUILD_TYPE="--config=opt --config=monolithic"
+ARG BUILD_TYPE=--config=opt
+
+RUN bazel build $BUILD_TYPE //tensorflow:libtensorflow_cc.so //tensorflow/stream_executor/...
 
 RUN pip3 install numpy pandas && \
     pip3 install keras_applications==1.0.4 --no-deps && \
     pip3 install keras_preprocessing==1.0.2 --no-deps && \
     pip3 install h5py==2.8.0
 
-RUN cd /work/tensorflow && \
-	bazel build --config=opt --config=monolithic \
+RUN bazel build $BUILD_TYPE  \
+		//tensorflow/contrib/rnn:all_ops \
+		//tensorflow/contrib/rnn:all_kernels \
 		//tensorflow/contrib/tensorrt:trt_engine_op_loader \
 		//tensorflow/contrib/tensorrt:python/ops/_trt_engine_op.so
 
-RUN cd /work/tensorflow && bazel build --config=opt --config=monolithic //tensorflow/tools/pip_package:build_pip_package
+
+RUN bazel build $BUILD_TYPE //tensorflow/tools/pip_package:build_pip_package
 
 RUN pip3 install virtualenv
 RUN virtualenv --system-site-packages -p python3 ./venv
-RUN bash -c "source venv/bin/activate && cd tensorflow && ./bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg"
+RUN bash -c "source venv/bin/activate && ./bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg"
+
