@@ -28,8 +28,8 @@ RUN \
 RUN mkdir /work
 WORKDIR /work
 
-ARG TENSORFLOW_VERSION=1.12.0
-ARG BAZEL_VERSION=0.15.0
+ARG TENSORFLOW_VERSION=1.14.0
+ARG BAZEL_VERSION=0.24.1
 
 
 RUN wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer-dev_5.1.2-1+cuda10.0_amd64.deb && \
@@ -49,9 +49,9 @@ RUN wget https://github.com/tensorflow/tensorflow/archive/v$TENSORFLOW_VERSION.t
 ENV TMP /tmp
 
 
-COPY .bazelrc /work/tensorflow
+COPY .bazelrc-$TENSORFLOW_VERSION /work/tensorflow
 COPY .tf_configure.bazelrc-$TENSORFLOW_VERSION /work/tensorflow/.tf_configure.bazelrc
-RUN cat /work/tensorflow/.tf_configure.bazelrc
+#RUN cat /work/tensorflow/.tf_configure.bazelrc
 
 WORKDIR /work/tensorflow
 
@@ -65,8 +65,8 @@ RUN patch -p0 < BUILD.patch
 # otherwise one symbol from stream_executor won't be visible
 # see https://github.com/tensorflow/tensorflow/issues/19840
 # The code does not exist up to 1.12.0 incl. In 1.13 it is there and the patch will fail
-COPY tf_version_script.lds.patch /work/tensorflow
-RUN patch -p0 tf_version_script.lds.patch
+#COPY tf_version_script.lds.patch /work/tensorflow
+#RUN patch -p0 tf_version_script.lds.patch
 
 # The following addition to LD path is needed or the bazel build will break with errors due to undefined references
 # See https://github.com/tensorflow/tensorflow/issues/13243
@@ -74,21 +74,31 @@ RUN patch -p0 tf_version_script.lds.patch
 # In case of monolithic build there is only one build artefact - libtensorflow_cc.so and there is no libtensorflow_framework.so
 RUN echo "/usr/local/cuda/targets/x86_64-linux/lib/stubs" >> /etc/ld.so.conf.d/cuda-10-0.conf && ldconfig
 
-#ARG BUILD_TYPE="--config=opt --config=monolithic"
-ARG BUILD_TYPE=--config=opt
-
-RUN bazel build $BUILD_TYPE //tensorflow:libtensorflow_cc.so //tensorflow/stream_executor/...
-
 RUN pip3 install numpy pandas && \
     pip3 install keras_applications==1.0.4 --no-deps && \
     pip3 install keras_preprocessing==1.0.2 --no-deps && \
-    pip3 install h5py==2.8.0
+    pip3 install h5py==2.8.0 virtualenv
 
+
+#ARG BUILD_TYPE="--config=opt --config=monolithic"
+ARG BUILD_TYPE=--config=opt
+
+RUN bazel build $BUILD_TYPE //tensorflow/stream_executor/...
+RUN bazel build $BUILD_TYPE //tensorflow:libtensorflow_cc.so
+
+# Up to 1.12.0
+#RUN bazel build $BUILD_TYPE  \
+#		//tensorflow/contrib/rnn:all_ops \
+#		//tensorflow/contrib/rnn:all_kernels \
+#		//tensorflow/contrib/tensorrt:trt_engine_op_loader \
+#		//tensorflow/contrib/tensorrt:python/ops/_trt_engine_op.so
+# From 1.14.0
 RUN bazel build $BUILD_TYPE  \
 		//tensorflow/contrib/rnn:all_ops \
 		//tensorflow/contrib/rnn:all_kernels \
-		//tensorflow/contrib/tensorrt:trt_engine_op_loader \
-		//tensorflow/contrib/tensorrt:python/ops/_trt_engine_op.so
+		//tensorflow/compiler/tf2tensorrt:trt_op_kernels \
+		//tensorflow/compiler/tf2tensorrt:trt_engine_op_op_lib \
+		//tensorflow/compiler/tf2tensorrt:trt_conversion
 
 
 RUN bazel build $BUILD_TYPE //tensorflow/tools/pip_package:build_pip_package
