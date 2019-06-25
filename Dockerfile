@@ -107,3 +107,6 @@ RUN pip3 install virtualenv
 RUN virtualenv --system-site-packages -p python3 ./venv
 RUN bash -c "source venv/bin/activate && ./bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg"
 
+# This is for 1.14.0 and newer
+# The headers are then in bazel-genfiles/tensorflow/include
+#RUN  bazel build $BUILD_TYPE //tensorflow:install_headers
