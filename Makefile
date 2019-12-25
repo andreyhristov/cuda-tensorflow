@@ -11,11 +11,14 @@ build: info
 extract-libraries: info
 	mkdir -p shared-$(DOCKER_TAG)
 	docker run --rm -v `pwd`/shared-$(DOCKER_TAG):/shared $(IMAGE_NAME):$(DOCKER_TAG) \
-                                    bash -c 'cp /work/tensorflow/bazel-bin/tensorflow/libtensorflow_cc.so /shared ; \
+                                    bash -c "cp /work/tensorflow/bazel-bin/tensorflow/libtensorflow_cc.so /shared ; \
 				             cp /work/tensorflow/bazel-bin/tensorflow/libtensorflow_framework.so /shared ; \
 				             cp /work/tensorflow/bazel-bin/tensorflow/compiler/tf2tensorrt/libtrt_op_kernels.so /shared ; \
 				             cp /work/tensorflow/bazel-bin/tensorflow/contrib/tensorrt/python/ops/_trt_engine_op.so /shared ; \
-				             cp /tmp/tensorflow_pkg/tensorflow-*.whl /shared '
+				             cp /tmp/tensorflow_pkg/tensorflow-*.whl /shared ; \
+				             cd /work/tensorflow/bazel-genfiles/tensorflow && \
+				                 tar zcvf tensorflow-include-$(TENSORFLOW_VERSION).tar.gz include/ && \
+				                 cp tensorflow-include-$(TENSORFLOW_VERSION).tar.gz /shared"
 
 info:
 	@echo TF_VERSION   :$(TENSORFLOW_VERSION)

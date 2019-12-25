@@ -21,21 +21,25 @@ RUN \
                 python \
                 unzip \
                 bash-completion \
-                joe less \
+                joe less git \
         && apt-get clean \
         && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir /work
 WORKDIR /work
 
-ARG TENSORFLOW_VERSION=1.14.0
-ARG BAZEL_VERSION=0.24.1
+RUN wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer-dev_5.1.5-1+cuda10.0_amd64.deb && \
+    wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer5_5.1.5-1+cuda10.0_amd64.deb && \
+    dpkg -i libnvinfer-dev_5.1.5-1+cuda10.0_amd64.deb libnvinfer5_5.1.5-1+cuda10.0_amd64.deb && \
+    rm libnvinfer-dev_5.1.5-1+cuda10.0_amd64.deb libnvinfer5_5.1.5-1+cuda10.0_amd64.deb
 
+RUN pip3 install numpy pandas && \
+    pip3 install keras_applications==1.0.4 --no-deps && \
+    pip3 install keras_preprocessing==1.0.2 --no-deps && \
+    pip3 install h5py==2.8.0 virtualenv
 
-RUN wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer-dev_5.1.2-1+cuda10.0_amd64.deb && \
-    wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer5_5.1.2-1+cuda10.0_amd64.deb && \
-    dpkg -i libnvinfer-dev_5.1.2-1+cuda10.0_amd64.deb libnvinfer5_5.1.2-1+cuda10.0_amd64.deb && \
-    rm libnvinfer-dev_5.1.2-1+cuda10.0_amd64.deb libnvinfer5_5.1.2-1+cuda10.0_amd64.deb
+ARG TENSORFLOW_VERSION=1.15.0
+ARG BAZEL_VERSION=0.26.1
 
 RUN wget https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/bazel_$BAZEL_VERSION-linux-x86_64.deb \
         && dpkg -i bazel_$BAZEL_VERSION-linux-x86_64.deb \
@@ -47,7 +51,6 @@ RUN wget https://github.com/tensorflow/tensorflow/archive/v$TENSORFLOW_VERSION.t
         && mv tensorflow-$TENSORFLOW_VERSION tensorflow
 
 ENV TMP /tmp
-
 
 COPY .bazelrc-$TENSORFLOW_VERSION /work/tensorflow
 COPY .tf_configure.bazelrc-$TENSORFLOW_VERSION /work/tensorflow/.tf_configure.bazelrc
@@ -74,11 +77,6 @@ RUN patch -p0 < BUILD.patch
 # In case of monolithic build there is only one build artefact - libtensorflow_cc.so and there is no libtensorflow_framework.so
 RUN echo "/usr/local/cuda/targets/x86_64-linux/lib/stubs" >> /etc/ld.so.conf.d/cuda-10-0.conf && ldconfig
 
-RUN pip3 install numpy pandas && \
-    pip3 install keras_applications==1.0.4 --no-deps && \
-    pip3 install keras_preprocessing==1.0.2 --no-deps && \
-    pip3 install h5py==2.8.0 virtualenv
-
 
 #ARG BUILD_TYPE="--config=opt --config=monolithic"
 ARG BUILD_TYPE=--config=opt
@@ -103,10 +101,9 @@ RUN bazel build $BUILD_TYPE  \
 
 RUN bazel build $BUILD_TYPE //tensorflow/tools/pip_package:build_pip_package
 
-RUN pip3 install virtualenv
 RUN virtualenv --system-site-packages -p python3 ./venv
 RUN bash -c "source venv/bin/activate && ./bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg"
 
 # This is for 1.14.0 and newer
 # The headers are then in bazel-genfiles/tensorflow/include
-#RUN  bazel build $BUILD_TYPE //tensorflow:install_headers
+RUN  bazel build $BUILD_TYPE //tensorflow:install_headers
